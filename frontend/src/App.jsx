@@ -10,7 +10,7 @@ const contractABI = [
   "function seller() view returns (address)",
   "function price() view returns (uint256)",
   "function setPrice(uint256 _newPrice) external",
-  "function getBalance() view returns (uint256)",
+  "function getBalance() external view returns (uint256)",
   "function pay(uint256 _toPay) external"
 ];
 
@@ -18,13 +18,13 @@ function App() {
   const [addressInput, setAddressInput] = useState('');
   const [isSeller, setIsSeller] = useState(false);
   const [contract, setContract] = useState(null);
-  const [currentPrice, setCurrentPrice] = useState('0');
+  const [currentPrice, setCurrentPrice] = useState(0);
   const [balance, setBalance] = useState('0');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loggedIn, setLoggedIn] = useState(false);
+  const [newPrice, setNewPrice] = useState('');
 
-  // Replace with your deployed contract address
   const CONTRACT_ADDRESS = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
 
   const initializeContract = async (address) => {
@@ -41,18 +41,17 @@ function App() {
       setIsSeller(sellerAddress === address);
       setContract(contractInstance);
       setSuccess('Logged in successfully!');
-      setError('');
       setLoggedIn(true);
       await updateContractInfo(contractInstance);
     } catch (err) {
-      setError(toString(err));
-      setSuccess('');
+      setError(err.message || 'An unknown error occurred.');
     }
   };
 
   const updateContractInfo = async (contractInstance) => {
     try {
-      const price = await contractInstance.price;
+      // const price = await contractInstance.getAddress();
+      var price = 0;
       setCurrentPrice(ethers.formatEther(price));
 
       if (isSeller) {
@@ -60,8 +59,7 @@ function App() {
         setBalance(ethers.formatEther(balance));
       }
     } catch (err) {
-      // setError('Failed to fetch contract data.');
-      setError(toString(err));
+      setError(err.message || 'Failed to fetch contract data.');
     }
   };
 
@@ -73,26 +71,29 @@ function App() {
     initializeContract(addressInput);
   };
 
-  const handleSetPrice = async (newPrice) => {
+  const handleSetPrice = async () => {
     try {
-      if (!contract || !newPrice) return;
+      if (!contract || !newPrice) {
+        setError('Price input is empty.');
+        return;
+      }
 
-      const priceInWei = ethers.parseEther(newPrice);
-      const tx = await contract.setPrice(priceInWei);
+      const tx = await contract.setPrice(setCurrentPrice(newPrice));
       await tx.wait();
 
       await updateContractInfo(contract);
       setSuccess('Price updated successfully!');
-      setError('');
     } catch (err) {
-      // setError('Failed to set price.');
-      setError(toString(err));
+      setError(err.message || 'Failed to set price.');
     }
   };
 
   const handlePay = async () => {
     try {
-      if (!contract) return;
+      if (!contract) {
+        setError('Contract is not initialized.');
+        return;
+      }
 
       const price = await contract.price();
       const tx = await contract.pay(price);
@@ -100,9 +101,8 @@ function App() {
 
       await updateContractInfo(contract);
       setSuccess('Payment successful!');
-      setError('');
     } catch (err) {
-      setError('Payment failed.');
+      setError(err.message || 'Payment failed.');
     }
   };
 
@@ -153,8 +153,10 @@ function App() {
                     <Input
                       type="number"
                       placeholder="New price in ETH"
-                      onChange={(e) => handleSetPrice(e.target.value)}
+                      value={newPrice}
+                      onChange={(e) => setNewPrice(e.target.value)}
                     />
+                    <Button onClick={handleSetPrice}>Set Price</Button>
                   </div>
                 </div>
               )}
