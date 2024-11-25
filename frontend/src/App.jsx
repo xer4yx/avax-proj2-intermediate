@@ -6,7 +6,6 @@ import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 // Import your contract ABI
-// Note: You'll need to copy the contract artifacts from the hardhat project
 const contractABI = [
   "function seller() view returns (address)",
   "function price() view returns (uint256)",
@@ -16,84 +15,44 @@ const contractABI = [
 ];
 
 function App() {
-  const [walletAddress, setWalletAddress] = useState('');
+  const [addressInput, setAddressInput] = useState('');
   const [isSeller, setIsSeller] = useState(false);
   const [contract, setContract] = useState(null);
   const [currentPrice, setCurrentPrice] = useState('0');
-  const [newPrice, setNewPrice] = useState('');
   const [balance, setBalance] = useState('0');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [loggedIn, setLoggedIn] = useState(false);
 
   // Replace with your deployed contract address
-  const CONTRACT_ADDRESS = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512";
+  const CONTRACT_ADDRESS = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
 
-  const connectWallet = async () => {
+  const initializeContract = async (address) => {
     try {
-      if (!window.ethereum) {
-        throw new Error("Please install MetaMask!");
-      }
-
-      // Request account access
-      const accounts = await window.ethereum.request({
-        method: 'eth_requestAccounts'
-      });
-
-      // Add Hardhat network if it doesn't exist
-      try {
-        await window.ethereum.request({
-          method: 'wallet_addEthereumChain',
-          params: [{
-            chainId: '0x7A69',
-            chainName: 'Hardhat Local',
-            nativeCurrency: {
-              name: 'Ethereum',
-              symbol: 'ETH',
-              decimals: 18
-            },
-            rpcUrls: ['http://localhost:8545']
-          }]
-        });
-      } catch (addError) {
-        console.log('Network might already be added');
-      }
-
-      // Switch to Hardhat network
-      await window.ethereum.request({
-        method: 'wallet_switchEthereumChain',
-        params: [{ chainId: '0x7A69' }],
-      });
-
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
-      const address = await signer.getAddress();
-      setWalletAddress(address);
-
-      // Initialize contract
+      const provider = new ethers.JsonRpcProvider("http://127.0.0.1:8545");
+      const signer = provider.getSigner(address);
       const contractInstance = new ethers.Contract(
         CONTRACT_ADDRESS,
         contractABI,
         signer
       );
 
-      // Check if connected wallet is seller
-      const sellerAddress = await contractInstance.seller();
-      setIsSeller(sellerAddress.toLowerCase() === address.toLowerCase());
-
+      const sellerAddress = await contractInstance.getAddress();
+      setIsSeller(sellerAddress === address);
       setContract(contractInstance);
-      await updateContractInfo(contractInstance);
-
-      setSuccess('Wallet connected successfully!');
+      setSuccess('Logged in successfully!');
       setError('');
+      setLoggedIn(true);
+      await updateContractInfo(contractInstance);
     } catch (err) {
-      setError(err.message);
+      setError(toString(err));
       setSuccess('');
     }
   };
 
   const updateContractInfo = async (contractInstance) => {
     try {
-      const price = await contractInstance.price();
+      const price = await contractInstance.price;
       setCurrentPrice(ethers.formatEther(price));
 
       if (isSeller) {
@@ -101,11 +60,20 @@ function App() {
         setBalance(ethers.formatEther(balance));
       }
     } catch (err) {
-      setError(err.message);
+      // setError('Failed to fetch contract data.');
+      setError(toString(err));
     }
   };
 
-  const handleSetPrice = async () => {
+  const handleLogin = () => {
+    if (!ethers.isAddress(addressInput)) {
+      setError('Invalid Ethereum address.');
+      return;
+    }
+    initializeContract(addressInput);
+  };
+
+  const handleSetPrice = async (newPrice) => {
     try {
       if (!contract || !newPrice) return;
 
@@ -115,11 +83,10 @@ function App() {
 
       await updateContractInfo(contract);
       setSuccess('Price updated successfully!');
-      setNewPrice('');
       setError('');
     } catch (err) {
-      setError(err.message);
-      setSuccess('');
+      // setError('Failed to set price.');
+      setError(toString(err));
     }
   };
 
@@ -135,8 +102,7 @@ function App() {
       setSuccess('Payment successful!');
       setError('');
     } catch (err) {
-      setError(err.message);
-      setSuccess('');
+      setError('Payment failed.');
     }
   };
 
@@ -158,48 +124,43 @@ function App() {
             </Alert>
           )}
 
-          <div className="space-y-2">
-            <Button onClick={connectWallet}>
-              Connect Wallet
-            </Button>
-            {walletAddress && (
-              <p className="text-sm">Connected Address: {walletAddress}</p>
-            )}
-          </div>
-
-          {contract && (
+          {!loggedIn ? (
+            <div className="space-y-2">
+              <Input
+                type="text"
+                placeholder="Enter your Ethereum address"
+                value={addressInput}
+                onChange={(e) => setAddressInput(e.target.value)}
+              />
+              <Button onClick={handleLogin}>Login</Button>
+            </div>
+          ) : (
             <div className="space-y-4">
+              <p>Logged in as: {addressInput}</p>
               <div>
                 <h3 className="font-medium">Current Price</h3>
                 <p>{currentPrice} ETH</p>
               </div>
 
               {isSeller && (
-                <>
+                <div className="space-y-4">
                   <div>
                     <h3 className="font-medium">Balance</h3>
                     <p>{balance} ETH</p>
                   </div>
 
                   <div className="space-y-2">
-                    <h3 className="font-medium">Set New Price</h3>
                     <Input
                       type="number"
                       placeholder="New price in ETH"
-                      value={newPrice}
-                      onChange={(e) => setNewPrice(e.target.value)}
+                      onChange={(e) => handleSetPrice(e.target.value)}
                     />
-                    <Button onClick={handleSetPrice}>
-                      Set Price
-                    </Button>
                   </div>
-                </>
+                </div>
               )}
 
               <div>
-                <Button onClick={handlePay}>
-                  Pay Current Price
-                </Button>
+                <Button onClick={handlePay}>Pay Current Price</Button>
               </div>
             </div>
           )}
