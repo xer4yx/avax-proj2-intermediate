@@ -1,0 +1,6 @@
+/.git/
+/.states/
+/src/
+/node_modules/
+/cache/
+.env

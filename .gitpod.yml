@@ -1,0 +1,20 @@
+ports:
+  - port: 8545
+    onOpen: ignore
+    visibility: public
+  - port: 3000
+    onOpen: open-browser
+    visibility: public
+
+tasks:
+  - name: Hardhat Node
+    init: npm install
+    command: npx hardhat node
+
+  - name: Frontend
+    init: |
+      cd frontend
+      npm install
+    command: |
+      cd frontend
+      npm run dev
