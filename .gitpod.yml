@@ -7,14 +7,18 @@ ports:
     visibility: public
 
 tasks:
-  - name: Hardhat Node
+  - name: Run Backend
     init: npm install
-    command: npx hardhat node
+    command: |
+      npx hardhat node
 
-  - name: Frontend
+  - name: Contract Deploy
+    command: npx hardhat run scripts/deploy.js --network localhost
+
+  - name: Run Frontend
     init: |
-      cd frontend
+      cd pages
       npm install
     command: |
-      cd frontend
+      cd pages
       npm run dev

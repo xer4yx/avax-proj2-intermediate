@@ -1,26 +1,19 @@
 const hre = require("hardhat");
 
 async function main() {
-  // Get the contract factory
-  const Contract = await hre.ethers.getContractFactory("Contract");
-  
-  // Deploy the contract
-  const contract = await Contract.deploy();
-  
-  // Wait for deployment to finish
-  await contract.waitForDeployment();  // Changed from deployed() to waitForDeployment()
+  const Assessment = await hre.ethers.getContractFactory("Blackbox");
+  const assessment = await Assessment.deploy();
+  await assessment.deployed();
 
-  // Get contract address - updated syntax
-  const address = await contract.getAddress();  // New way to get address
-  
-  console.log("Contract deployed to:", address);
-
-  // Optional: Verify on explorer (for testnets)
-  // await hre.run("verify:verify", {
-  //   address: address,
-  //   constructorArguments: [],
-  // });
+  console.log(`Lootbox contract has been deployed to ${assessment.address}`);
 }
+
+// We recommend this pattern to be able to use async/await everywhere
+// and properly handle errors.
+main().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});
 
 // Execute deployment
 main()
