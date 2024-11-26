@@ -11,9 +11,7 @@ contract Blackbox {
         _;
     }
 
-    // Internal function to get a random prize based on lootbox type
     function getRandomPrize(string memory goodsCategory) internal pure returns (string memory) {
-        // For simplicity, we'll return a fixed prize here based on lootbox type
         if (keccak256(abi.encodePacked(goodsCategory)) == keccak256(abi.encodePacked("Melee"))) {
             return "SOG Seal Pup";
         } else if (keccak256(abi.encodePacked(goodsCategory)) == keccak256(abi.encodePacked("Handgun"))) {
