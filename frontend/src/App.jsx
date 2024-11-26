@@ -15,43 +15,63 @@ const contractABI = [
 ];
 
 function App() {
-  const [addressInput, setAddressInput] = useState('');
+  const [account, setAccount] = useState('');
   const [isSeller, setIsSeller] = useState(false);
   const [contract, setContract] = useState(null);
   const [currentPrice, setCurrentPrice] = useState(0);
   const [balance, setBalance] = useState('0');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [loggedIn, setLoggedIn] = useState(false);
   const [newPrice, setNewPrice] = useState('');
 
   const CONTRACT_ADDRESS = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
 
+  const connectWallet = async () => {
+    try {
+      // Check if MetaMask is installed
+      if (typeof window.ethereum !== 'undefined') {
+        // Request account access
+        const accounts = await window.ethereum.request({ 
+          method: 'eth_requestAccounts' 
+        });
+        
+        // Set the first account
+        setAccount(accounts[0]);
+        
+        // Initialize contract after connecting wallet
+        await initializeContract(accounts[0]);
+      } else {
+        alert('MetaMask not detected. Please install MetaMask.');
+      }
+    } catch (err) {
+      alert(err.message || 'Failed to connect wallet');
+    }
+  };
+
   const initializeContract = async (address) => {
     try {
-      const provider = new ethers.JsonRpcProvider("http://127.0.0.1:8545");
-      const signer = provider.getSigner(address);
+      // Create provider from MetaMask
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
       const contractInstance = new ethers.Contract(
         CONTRACT_ADDRESS,
         contractABI,
         signer
       );
 
-      const sellerAddress = await contractInstance.getAddress();
-      setIsSeller(sellerAddress === address);
+      const sellerAddress = await contractInstance.seller();
+      setIsSeller(sellerAddress.toLowerCase() === address.toLowerCase());
       setContract(contractInstance);
-      setSuccess('Logged in successfully!');
-      setLoggedIn(true);
+      alert('Connected successfully!');
       await updateContractInfo(contractInstance);
     } catch (err) {
-      setError(err.message || 'An unknown error occurred.');
+      alert(err.message || 'An unknown error occurred.');
     }
   };
 
   const updateContractInfo = async (contractInstance) => {
     try {
-      // const price = await contractInstance.getAddress();
-      var price = 0;
+      const price = await contractInstance.price();
       setCurrentPrice(ethers.formatEther(price));
 
       if (isSeller) {
@@ -59,39 +79,31 @@ function App() {
         setBalance(ethers.formatEther(balance));
       }
     } catch (err) {
-      setError(err.message || 'Failed to fetch contract data.');
+      alert(err.message || 'Failed to fetch contract data.');
     }
-  };
-
-  const handleLogin = () => {
-    if (!ethers.isAddress(addressInput)) {
-      setError('Invalid Ethereum address.');
-      return;
-    }
-    initializeContract(addressInput);
   };
 
   const handleSetPrice = async () => {
     try {
       if (!contract || !newPrice) {
-        setError('Price input is empty.');
+        alert('Price input is empty.');
         return;
       }
 
-      const tx = await contract.setPrice(setCurrentPrice(newPrice));
+      const tx = await contract.setPrice(ethers.parseEther(newPrice));
       await tx.wait();
 
       await updateContractInfo(contract);
-      setSuccess('Price updated successfully!');
+      alert('Price updated successfully!');
     } catch (err) {
-      setError(err.message || 'Failed to set price.');
+      alert(err.message || 'Failed to set price.');
     }
   };
 
   const handlePay = async () => {
     try {
       if (!contract) {
-        setError('Contract is not initialized.');
+        alert('Contract is not initialized.');
         return;
       }
 
@@ -100,17 +112,40 @@ function App() {
       await tx.wait();
 
       await updateContractInfo(contract);
-      setSuccess('Payment successful!');
+      alert('Payment successful!');
     } catch (err) {
-      setError(err.message || 'Payment failed.');
+      alert(err.message || 'Payment failed.');
     }
   };
 
+  // Listen for account changes
+  useEffect(() => {
+    if (window.ethereum) {
+      window.ethereum.on('accountsChanged', (accounts) => {
+        if (accounts.length > 0) {
+          setAccount(accounts[0]);
+          initializeContract(accounts[0]);
+        } else {
+          // Disconnected
+          setAccount('');
+          setContract(null);
+        }
+      });
+    }
+
+    // Cleanup listener
+    return () => {
+      if (window.ethereum) {
+        window.ethereum.removeAllListeners('accountsChanged');
+      }
+    };
+  }, []);
+
   return (
-    <div className="max-w-2xl mx-auto p-4 space-y-4">
-      <Card>
+    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
+      <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>Contract Interface (Hardhat)</CardTitle>
+          <CardTitle>Contract Interface</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {error && (
@@ -124,19 +159,13 @@ function App() {
             </Alert>
           )}
 
-          {!loggedIn ? (
-            <div className="space-y-2">
-              <Input
-                type="text"
-                placeholder="Enter your Ethereum address"
-                value={addressInput}
-                onChange={(e) => setAddressInput(e.target.value)}
-              />
-              <Button onClick={handleLogin}>Login</Button>
+          {!account ? (
+            <div className="text-center">
+              <Button onClick={connectWallet}>Connect Wallet</Button>
             </div>
           ) : (
             <div className="space-y-4">
-              <p>Logged in as: {addressInput}</p>
+              <p className="text-center">Connected: {account}</p>
               <div>
                 <h3 className="font-medium">Current Price</h3>
                 <p>{currentPrice} ETH</p>
@@ -161,7 +190,7 @@ function App() {
                 </div>
               )}
 
-              <div>
+              <div className="text-center">
                 <Button onClick={handlePay}>Pay Current Price</Button>
               </div>
             </div>
