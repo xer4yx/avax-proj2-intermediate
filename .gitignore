@@ -1,9 +1,11 @@
 /.git/
 /.states/
-/src/
+
+*.json
+!package.json
+.env
+
 /node_modules/
 /cache/
 /artifacts/*
 /.next/*
-*.json
-.env
