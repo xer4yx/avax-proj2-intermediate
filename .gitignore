@@ -6,5 +6,4 @@
 /artifacts/*
 /.next/*
 *.json
-*.yml
 .env
