@@ -3,4 +3,8 @@
 /src/
 /node_modules/
 /cache/
+/artifacts/*
+/.next/*
+*.json
+*.yml
 .env
