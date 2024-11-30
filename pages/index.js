@@ -57,7 +57,6 @@ export default function HomePage() {
       setBlackboxGoods(undefined);
       setIllegalGoods([]);
 
-      // Show user feedback
       alert("Logout from the session");
     } catch (error) {
       console.error("Error disconnecting wallet:", error);
@@ -76,29 +75,24 @@ export default function HomePage() {
     }
 
     try {
-      // Request wallet permissions to trigger account selection
       await metaWallet.request({
         method: "wallet_requestPermissions",
         params: [{ eth_accounts: {} }]
       });
 
-      // Fetch the newly selected accounts
       const accounts = await metaWallet.request({ 
         method: "eth_requestAccounts" 
       });
 
-      // Update the account state
       if (accounts.length > 0) {
         setAccount(accounts[0]);
         
-        // Reconnect the contract with the new account
         const provider = new ethers.providers.Web3Provider(metaWallet);
         const signer = provider.getSigner();
         const lootContract = new ethers.Contract(contractAddress, blackboxABI, signer);
         
         setBlackboxGoods(lootContract);
         
-        // Fetch rewards for the new account
         await getRewards();
 
         alert(`Switched to account: ${accounts[0]}`);
@@ -179,7 +173,6 @@ export default function HomePage() {
       <div>
         <p>Your Account: {`...${account.toString().slice(-4)}`}</p>
         
-        {/* New Switch Account Button */}
         <div style={{ 
           display: 'flex', 
           justifyContent: 'center', 
