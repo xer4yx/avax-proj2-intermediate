@@ -11,29 +11,37 @@ contract Blackbox {
         _;
     }
 
-    function getRandomPrize(string memory goodsCategory) internal pure returns (string memory) {
+    function _getArmament(string memory goodsCategory) internal pure returns (string memory) {
         if (keccak256(abi.encodePacked(goodsCategory)) == keccak256(abi.encodePacked("Melee"))) {
             return "SOG Seal Pup";
         } else if (keccak256(abi.encodePacked(goodsCategory)) == keccak256(abi.encodePacked("Handgun"))) {
             return "Glock 17";
+        } else if (keccak256(abi.encodePacked(goodsCategory)) == keccak256(abi.encodePacked("Rifle"))) {
+            return "AK-47";
         } else {
             return "You got nothing!";
         }
     }
 
     function buyMelee() external payable correctPayment(1 ether) {
-        string memory prize = getRandomPrize("Melee");
+        string memory prize = _getArmament("Melee");
         consumerGoods[msg.sender].push(prize);
         emit BoughtGoods(msg.sender, "Melee", prize);
     }
 
     function buyHandgun() external payable correctPayment(2 ether) {
-        string memory prize = getRandomPrize("Handgun");
+        string memory prize = _getArmament("Handgun");
         consumerGoods[msg.sender].push(prize);
         emit BoughtGoods(msg.sender, "Handgun", prize);
     }
 
-    function getMyPrizes() external view returns (string[] memory) {
+    function buyRifle() external payable correctPayment(5 ether) {
+        string memory prize = _getArmament("Rifle");
+        consumerGoods[msg.sender].push(prize);
+        emit BoughtGoods(msg.sender, "Rifle", prize);
+    }
+
+    function getUserArmaments() external view returns (string[] memory) {
         return consumerGoods[msg.sender];
     }
 }

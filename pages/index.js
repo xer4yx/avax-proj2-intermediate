@@ -31,7 +31,7 @@ export default function HomePage() {
     }
   };
 
-  const getSolContract = async () => {
+  const getBlackBoxContract = async () => {
     const provider = new ethers.providers.Web3Provider(metaWallet);
     const signer = provider.getSigner();
     const lootContract = new ethers.Contract(contractAddress, blackboxABI, signer);
@@ -39,7 +39,7 @@ export default function HomePage() {
     setBlackboxGoods(lootContract);
   };
 
-  const connectAccount = async () => {
+  const loginWallet = async () => {
     if (!metaWallet) {
       alert("MetaMask wallet is required to connect");
       return;
@@ -48,8 +48,65 @@ export default function HomePage() {
     const accounts = await metaWallet.request({ method: "eth_requestAccounts" });
     handleAccount(accounts);
 
-    // once wallet is set we can get a reference to our deployed contract
-    await getSolContract();
+    await getBlackBoxContract();
+  };
+
+  const logoutWallet = async () => {
+    try {
+      setAccount(undefined);
+      setBlackboxGoods(undefined);
+      setIllegalGoods([]);
+
+      // Show user feedback
+      alert("Logout from the session");
+    } catch (error) {
+      console.error("Error disconnecting wallet:", error);
+      alert("Error disconnecting wallet. Forcing you to logout");
+    } finally {
+      if (account) {
+        setAccount(undefined);
+      }
+    }
+  };
+
+  const switchAccount = async () => {
+    if (!metaWallet || !metaWallet.isMetaMask) {
+      alert("MetaMask wallet is not available!");
+      return;
+    }
+
+    try {
+      // Request wallet permissions to trigger account selection
+      await metaWallet.request({
+        method: "wallet_requestPermissions",
+        params: [{ eth_accounts: {} }]
+      });
+
+      // Fetch the newly selected accounts
+      const accounts = await metaWallet.request({ 
+        method: "eth_requestAccounts" 
+      });
+
+      // Update the account state
+      if (accounts.length > 0) {
+        setAccount(accounts[0]);
+        
+        // Reconnect the contract with the new account
+        const provider = new ethers.providers.Web3Provider(metaWallet);
+        const signer = provider.getSigner();
+        const lootContract = new ethers.Contract(contractAddress, blackboxABI, signer);
+        
+        setBlackboxGoods(lootContract);
+        
+        // Fetch rewards for the new account
+        await getRewards();
+
+        alert(`Switched to account: ${accounts[0]}`);
+      }
+    } catch (error) {
+      console.error("Account switching error:", error);
+      alert("Error switching accounts. Please try again.");
+    }
   };
 
   const buyMelee = async () => {
@@ -83,22 +140,36 @@ export default function HomePage() {
     getRewards();
   };
 
+  const buyRifle = async () => {
+    if (!blackbox) return;
+
+    try {
+        const tx = await blackbox.buyRifle({
+            value: ethers.utils.parseEther("5"),
+        });
+        await tx.wait();
+    } catch (error) {
+        alert("transaction error", error)
+        console.log(error);
+    }
+
+    getRewards();
+  };
+
   const getRewards = async () => {
     if (blackbox) {
-      setIllegalGoods(await blackbox.getMyPrizes());
+      setIllegalGoods(await blackbox.getUserArmaments());
     }
   };
 
   const initUser = () => {
-    // Check to see if user has Metamask
     if (!metaWallet) {
       return <p>Please install Metamask in order to use this App.</p>;
     }
 
-    // Check to see if user is connected. If not, connect to their account
     if (!account) {
       return (
-        <button onClick={connectAccount}>
+        <button onClick={loginWallet}>
           Please connect your Metamask wallet
         </button>
       );
@@ -107,6 +178,18 @@ export default function HomePage() {
     return (
       <div>
         <p>Your Account: {`...${account.toString().slice(-4)}`}</p>
+        
+        {/* New Switch Account Button */}
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          gap: '10px', 
+          marginBottom: '10px' 
+        }}>
+          <button onClick={switchAccount}>Switch Account</button>
+          <button onClick={logoutWallet}>Disconnect Wallet</button>
+        </div>
+
         {account ? (
           <div
             style={{
@@ -117,10 +200,12 @@ export default function HomePage() {
           >
             <button onClick={buyMelee}>Buy Melee</button>
             <button onClick={buyHandgun}> Buy Handgun</button>
+            <button onClick={buyRifle}> Buy Rifle</button>
           </div>
         ) : (
           <p>Please Connect Account.</p>
         )}
+        
         <hr />
         <h2> Your Armory </h2>
         <ul>
@@ -142,7 +227,17 @@ export default function HomePage() {
   }, [blackbox])
 
   return (
-    <main className="container">
+    <main 
+      className="container" 
+      style={
+        {
+          backgroundImage: `url(https://hips.hearstapps.com/hmg-prod/images/camouflage-pattern-background-royalty-free-image-1706201424.jpg)`,
+          backgroundSize: 'cover', 
+          backgroundPosition: 'center', 
+          backgroundRepeat: 'no-repeat',
+          minHeight: '100vh'
+        }
+      }>
       <header>
         <h1>Welcome to Weapons Blackbox!</h1>
       </header>
@@ -150,6 +245,7 @@ export default function HomePage() {
       <style jsx>
         {`
           .container {
+            color: #FFFFFF;
             text-align: center;
             font-family: Arial;
           }
